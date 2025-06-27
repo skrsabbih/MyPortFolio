@@ -1,36 +1,37 @@
-############################
-# 1️⃣ Build vendor layer   #
-############################
-FROM composer:2 AS vendor
-WORKDIR /app
-
-COPY composer.json composer.lock ./
-# ⚠️ ここ --no-scripts যোগ
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress \
-    --ignore-platform-reqs --no-scripts
-
-############################
-# 2️⃣ PHP 8.2 + Apache     #
-############################
+# Use PHP 8.2 with Apache
 FROM php:8.2-apache
 
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
-      libpq-dev libzip-dev zip git unzip libpng-dev libonig-dev \
-  && docker-php-ext-install pdo pdo_pgsql pgsql mbstring gd zip
+    unzip git curl libpq-dev libzip-dev libpng-dev libonig-dev \
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring gd zip
 
-RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
-    && sed -ri -e 's!/var/www/! /var/www/html/public!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
-    && a2enmod rewrite
+# Enable Apache Rewrite Module
+RUN a2enmod rewrite
 
+# Set working directory
 WORKDIR /var/www/html
-COPY . .
-COPY --from=vendor /app/vendor ./vendor
 
-# Laravel housekeeping
-RUN php artisan key:generate --force \
+# Copy composer from official image
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Copy app source code
+COPY . .
+
+# Set Apache document root to Laravel's public folder
+RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
+ && sed -ri -e 's!/var/www/! /var/www/html/public!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+# Install Laravel dependencies & setup app
+RUN composer install --no-dev --optimize-autoloader \
+ && php artisan key:generate --force \
  && php artisan migrate --force \
  && php artisan storage:link || true \
- && php artisan package:discover --ansi   # 🆕 এখন স্ক্রিপ্ট চালাও
+ && php artisan package:discover --ansi \
+ && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Expose port 80
 EXPOSE 80
+
+# Start Apache server
 CMD ["apache2-foreground"]
