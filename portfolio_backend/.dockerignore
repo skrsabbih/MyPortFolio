@@ -1,0 +1,18 @@
+# Git & IDE junk
+.git
+.gitignore
+*.log
+*.swp
+*.idea
+
+# Node stuff 
+node_modules
+npm-debug.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
