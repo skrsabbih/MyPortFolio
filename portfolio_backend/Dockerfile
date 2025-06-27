@@ -4,16 +4,7 @@ RUN apt-get update && apt-get install -y \
       unzip git libpq-dev libzip-dev libpng-dev libonig-dev \
   && docker-php-ext-install pdo pdo_pgsql pgsql mbstring gd zip
 
-# এই লাইন দিয়ে composer official image থেকে composer binary কপি করবো
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-ENV COMPOSER_ALLOW_SUPERUSER=1
 WORKDIR /var/www/html
-
-COPY composer.json composer.lock ./
-
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress \
-  && rm -rf /root/.composer
 
 COPY . .
 
